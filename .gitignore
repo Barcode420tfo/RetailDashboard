@@ -1,0 +1,19 @@
+node_modules/
+.env
+.env.*
+!.env.example
+coverage/
+uploads/
+.DS_Store
+.local/
+dist/
+playwright-report/
+test-results/
+
+# Private operational data and generated business reports
+/data/
+/artifacts/
+*.xlsx
+*.xls
+*.csv
+*.ipynb

@@ -1,0 +1,10 @@
+import {schema,model,text,choice,day,integer,unique,Schema} from './shared.js';
+export const regionIds=['LAG','NOR','SSE'];
+export const Region=model('Region',schema({regionId:choice(regionIds),name:text(),rbm:text()},[[{regionId:1},unique]]));
+export const Account=model('Account',schema({name:text(),email:{...text(),lowercase:true},passwordHash:{...text(),select:false},role:choice(['ANALYST','CCO','RBM','ZONAL_LEAD','CLUSTER_SUPERVISOR']),region:choice([...regionIds,'ALL']),zone:text(false),clusterName:text(false),titles:[String],active:{type:Boolean,default:true}},[[{email:1},unique]]));
+export const LoginSession=model('LoginSession',schema({tokenHash:text(),account:{type:Schema.Types.ObjectId,ref:'Account',required:true},expiresAt:{type:Date,required:true},previewAccount:{type:Schema.Types.ObjectId,ref:'Account'},previewProfile:Schema.Types.Mixed},[[{tokenHash:1},unique],[{expiresAt:1},{expireAfterSeconds:0}]]));
+export const Executive=model('Executive',schema({executiveId:text(),region:choice(regionIds),name:text(),agentId:text(false),sourceCode:text(false),state:text(false),storeId:text(false),clusterName:text(false),storeName:text(false),status:choice(['ACTIVE','INACTIVE','RESIGNED','EXITED','UNKNOWN'],'UNKNOWN'),joinedOn:day(false),exitedOn:day(false),source:text(),reviewNote:text(false)},[[{executiveId:1},unique],[{region:1,status:1}]]));
+export const ExecutiveEvent=model('ExecutiveEvent',schema({executiveId:text(),region:choice(regionIds),action:text(),actor:text(),effectiveDate:day(false),reason:text(),before:{type:Schema.Types.Mixed},after:{type:Schema.Types.Mixed}}));
+export const PasswordRecovery=model('PasswordRecovery',schema({account:{type:Schema.Types.ObjectId,ref:'Account',required:true},tokenHash:text(),expiresAt:{type:Date,required:true},usedAt:Date,issuedBy:text()},[[{tokenHash:1},unique],[{expiresAt:1},{expireAfterSeconds:0}]]));
+export const AccountEvent=model('AccountEvent',schema({account:text(),actor:text(),action:text()}));
+export const AccountAdminLock=model('AccountAdminLock',schema({_id:{type:String},revision:{type:Number,default:0}}));
