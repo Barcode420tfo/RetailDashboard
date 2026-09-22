@@ -62,3 +62,7 @@ main{max-width:none}.desktop-toggle{display:inline-flex}.sidebar{width:250px}.ma
 .workspace-menu button:focus-visible,.workspace-menu-toggle:focus-visible{outline:2px solid #4466ed;outline-offset:2px}
 
 .auth-logo{display:block;width:100%;max-width:320px;height:auto;margin:0 auto 28px;}
+
+/* History-aware dashboard navigation. */
+.back-button{display:inline-flex;align-items:center;gap:4px;padding:7px 9px;border:1px solid #dfe5ee;border-radius:6px;color:#53647e;background:#fff;font-size:12px;font-weight:600;cursor:pointer}.back-button:hover{background:#f3f6fc}
+@media(max-width:650px){.back-button{padding:6px 7px;font-size:0}.back-button svg{width:19px;height:19px}}

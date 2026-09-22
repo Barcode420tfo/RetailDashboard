@@ -1,10 +1,12 @@
 import {Router} from 'express';
 import mongoose from 'mongoose';
 import {ReconciliationCase} from '../models/index.js';
-import {seesAllRegions,isRestricted} from '../middleware/access.js';
+import {seesAllRegions,isRestricted,isOwner} from '../middleware/access.js';
 import {canAccessRegion} from '../middleware/access.js';
 
 export const reconciliationRouter=Router();
+// Reconciliation notes and warnings are owner-only operational records.
+reconciliationRouter.use((req,res,next)=>isOwner(req.account)?next():res.status(403).json({error:'Reconciliation notes are private to the workspace owner.'}));
 const allowed=(account,region)=>region==='ALL'?seesAllRegions(account):canAccessRegion(account,region);
 reconciliationRouter.get('/',async(req,res,next)=>{try{
   const region=req.query.region||req.account.region;
