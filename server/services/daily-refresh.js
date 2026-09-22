@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import {parseMoney,normalizeName,stateIdentity} from './sales-workbook.js';
+import {parseMoney,normalizeName,stateIdentity,agentMatchesName} from './sales-workbook.js';
 import {resolveCluster} from './cluster-aliases.js';
 import {validDay} from '../models/shared.js';
 import register from './target-register.js';
@@ -64,7 +64,7 @@ export function matchExisting(row,existing){
 }
 export function mapDailyRow(row,{agents,clusters,executives},old){
   const mapped={...row,issues:[...row.issues]};
-  const names=agents.filter(a=>normalizeName(a.fullName)===normalizeName(row.sourceAgentName));
+  const names=agents.filter(a=>agentMatchesName(a,row.sourceAgentName));
   // Preserve previously reviewed identity links; newly supplied names can fill a missing link.
   const agent=names.length===1?names[0]:old?.agent?agents.find(a=>String(a._id)===String(old.agent)):null;
   if(row.region==='LAG'){

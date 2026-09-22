@@ -13,6 +13,20 @@ export function buildDashboard({ records, roster, clusters, stores = [], period,
   const target = zone==='All zones'&&period.regionalMonthlyTargetKobo!=null?period.regionalMonthlyTargetKobo/100:targetRows.every(row=>row.valueKobo!=null)?targetRows.reduce((total, row) => total + row.valueKobo, 0) / 100:null;
   const sales = sum(rows);
   const metrics = (value, target) => ({ target, value, expected: target==null?null:target * elapsed / totalDays, achievement: target ? value / target : null, pace: target && elapsed ? value / (target * elapsed / totalDays) : null, gap: target==null?null:value - target * elapsed / totalDays, forecast: elapsed ? value / elapsed * totalDays : null });
+  // Older accepted records may predate the normalized product fields. Keep the
+  // product breakdown usable without presenting an empty category (or returning
+  // a null label that the client cannot render).
+  const brandFromDevice = device => {
+    const value = String(device || '');
+    if (/samsung/i.test(value)) return 'Samsung';
+    if (/infinix/i.test(value)) return 'Infinix';
+    if (/xiaomi|redmi/i.test(value)) return 'Xiaomi / Redmi';
+    if (/tecno/i.test(value)) return 'Tecno';
+    if (/itel/i.test(value)) return 'Itel';
+    if (/oppo/i.test(value)) return 'Oppo';
+    if (/honor/i.test(value)) return 'Honor';
+    return 'Other / not supplied';
+  };
   const group = (key, label) => [...new Set(rows.map(key))].map(name => { const selected = rows.filter(row => key(row) === name); return {name, value:sum(selected), count:selected.length, ...label?.(name)}; }).sort((a,b)=>b.value-a.value);
   const zones = targetRows.map(row => {const subset=rows.filter(tx=>tx.sourceZone===row.zone);return {name:row.zone,...metrics(sum(subset),row.valueKobo==null?null:row.valueKobo/100),count:subset.length};});
   const timeline = [];
@@ -49,13 +63,13 @@ export function buildDashboard({ records, roster, clusters, stores = [], period,
     agent.targetStatus=target==null?'Target pending':agent.employmentStatus==='ACTIVE'?'Allocated':'Reallocation pending';
   }
   agents.sort((a,b)=>b.value-a.value);
-  const transactionRows = rows.map(row=>({id:row.transactionId,date:row.businessDate,agent:rosterById.get(String(row.agent))?.fullName||row.sourceAgentName,agentId:rosterById.get(String(row.agent))?.agentId||null,store:row.sourceStoreName,zone:row.sourceZone,cluster:clusterById.get(String(row.cluster))?.name||'Unmapped',device:row.device,brand:row.brand,plan:row.plan,value:row.valueKobo/100,identityMethod:row.identityMethod,needsAttribution:!rosterById.has(String(row.agent))})).sort((a,b)=>b.date.localeCompare(a.date));
+  const transactionRows = rows.map(row=>({id:row.transactionId,date:row.businessDate,agent:rosterById.get(String(row.agent))?.fullName||row.sourceAgentName,agentId:rosterById.get(String(row.agent))?.agentId||null,store:row.sourceStoreName,zone:row.sourceZone,cluster:clusterById.get(String(row.cluster))?.name||'Unmapped',device:row.device||'Device not supplied',brand:row.brand||brandFromDevice(row.device),plan:row.plan||row.rawPlan||'Plan not supplied',value:row.valueKobo/100,identityMethod:row.identityMethod,needsAttribution:!rosterById.has(String(row.agent))})).sort((a,b)=>b.date.localeCompare(a.date));
   return {
     filters:{zone,asOf,from},period:{region:period.region||'LAG',rosterPending:Boolean(period.region),targetsAvailable:period.zoneTargets.some(r=>r.valueKobo!=null),month:period.month,asOf:period.asOf,sourceLabel:period.sourceLabel,sourceSha256:period.sourceSha256,notes:period.notes,availableDates:period.availableDates},
     summary:{...metrics(sales,target),count:rows.length,elapsed,totalDays,remaining,runRate:elapsed?sales/elapsed:null,requiredRate:target!=null && from === `${period.month}-01` && remaining?Math.max(target-sales,0)/remaining:null,averageTicket:rows.length?sales/rows.length:0,activeAgents:eligible.length,sellingAgents:agents.filter(row=>row.roster&&row.count>0).length,zeroSellers:agents.filter(row=>row.roster&&row.count===0).length},
     storeReporting:buildStoreReporting({rows,stores,clusters,zone}),
     targetAllocation:{source:(period.agentTargets||[]).length?period.targetSourceLabel||null:null,total:allocationRows.reduce((a,r)=>a+r.valueKobo,0)/100,pending:allocationRows.filter(r=>r.employmentStatus!=='ACTIVE').reduce((a,r)=>a+r.valueKobo,0)/100,pendingCount:allocationRows.filter(r=>r.employmentStatus!=='ACTIVE').length,missing:agents.filter(a=>a.roster&&a.target==null).map(a=>a.name)},
-    zones,timeline,agents,clusters:group(row=>clusterById.get(String(row.cluster))?.name||'Unmapped'),brands:group(row=>row.brand),plans:group(row=>row.plan),devices:group(row=>row.device),transactions:transactionRows,
+    zones,timeline,agents,clusters:group(row=>clusterById.get(String(row.cluster))?.name||'Unmapped'),brands:group(row=>row.brand||brandFromDevice(row.device)),plans:group(row=>row.plan||row.rawPlan||'Plan not supplied'),devices:group(row=>row.device||'Device not supplied'),transactions:transactionRows,
     quality:{fingerprints:rows.filter(row=>row.identityMethod==='FINGERPRINT').length,outsideRoster:rows.filter(row=>!rosterById.has(String(row.agent))).length,unmappedClusters:rows.filter(row=>!row.cluster).length,approvedBaselineCount:period.approvedCount,approvedBaselineValue:period.approvedValueKobo/100},
   };
 }

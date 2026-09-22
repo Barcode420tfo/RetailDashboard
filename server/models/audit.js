@@ -12,5 +12,6 @@ export const Reconciliation = model('Reconciliation', schema({
 
 export const AuditLog = model('AuditLog', schema({
   actor: ref('User'), action: text(), entityType: text(), entityId: { type: Schema.Types.ObjectId, required: true },
+  visibleTo: { type: Schema.Types.ObjectId, ref: 'Account', required: false, index: true },
   before: Schema.Types.Mixed, after: Schema.Types.Mixed, reason: text(), requestId: text(false),
 }, [[{ entityType: 1, entityId: 1, createdAt: -1 }], [{ actor: 1, createdAt: -1 }]]));

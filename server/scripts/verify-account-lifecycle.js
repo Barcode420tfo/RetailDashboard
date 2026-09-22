@@ -1,0 +1,53 @@
+// Explicit integration check: creates and removes only its own temporary accounts.
+import assert from 'node:assert/strict';
+import {randomBytes} from 'node:crypto';
+import bcrypt from 'bcryptjs';
+import request from 'supertest';
+import {app} from '../app.js';
+import {connectDatabase,disconnectDatabase} from '../db.js';
+import {initializeLifecycle} from '../routes/account-lifecycle.js';
+import {Account,AccountEvent,LoginSession,PasswordRecovery} from '../models/index.js';
+const accounts=[];const password=randomBytes(20).toString('hex');const nextPassword=randomBytes(20).toString('hex');
+const post=(agent,path,data)=>agent.post('/api/auth'+path).set('X-Dashboard-Request','1').send(data);
+const patch=(agent,path,data)=>agent.patch('/api/auth'+path).set('X-Dashboard-Request','1').send(data);
+try {
+ await connectDatabase();await initializeLifecycle();
+ for(const [role,region] of [['ANALYST','ALL'],['RBM','NOR']]) accounts.push(await Account.create({name:'Lifecycle QA',email:`qa-${randomBytes(12).toString('hex')}@example.invalid`,role,region,passwordHash:await bcrypt.hash(password,12)}));
+ const [admin,rbm]=accounts;const a=request.agent(app),r=request.agent(app);
+ assert.equal((await post(a,'/login',{email:admin.email,password})).status,200);
+ assert.equal((await post(r,'/login',{email:rbm.email,password})).status,200);
+ assert.equal((await r.get('/api/dashboard?region=LAG')).status,403);
+ assert.equal((await post(r,`/accounts/${admin.id}/recovery`,{})).status,403);
+ assert.equal((await patch(a,`/accounts/${admin.id}/access`,{active:false})).status,400);
+ assert.equal((await patch(a,`/accounts/${rbm.id}/access`,{active:false})).status,200);
+ assert.equal((await r.get('/api/auth/me')).status,401);
+ assert.equal((await post(r,'/login',{email:rbm.email,password})).status,401);
+ assert.equal((await patch(a,`/accounts/${rbm.id}/access`,{active:true})).status,200);
+ assert.equal((await r.get('/api/auth/me')).status,401);
+ assert.equal((await post(r,'/login',{email:rbm.email,password})).status,200);
+ const issued=await post(a,`/accounts/${rbm.id}/recovery`,{});assert.equal(issued.status,200);
+ assert.equal(await PasswordRecovery.countDocuments({account:rbm._id,tokenHash:issued.body.code}),0);
+ assert.equal((await post(request(app),'/recover',{email:rbm.email,code:'wrong',password:nextPassword})).status,400);
+ assert.equal((await post(request(app),'/recover',{email:rbm.email,code:issued.body.code,password:nextPassword})).status,200);
+ assert.equal((await r.get('/api/auth/me')).status,401);
+ assert.equal((await post(request(app),'/recover',{email:rbm.email,code:issued.body.code,password})).status,400);
+ assert.equal((await post(r,'/login',{email:rbm.email,password})).status,401);
+ assert.equal((await post(r,'/login',{email:rbm.email,password:nextPassword})).status,200);
+ const expired=await post(a,`/accounts/${rbm.id}/recovery`,{});
+ await PasswordRecovery.updateOne({account:rbm._id},{$set:{expiresAt:new Date(Date.now()-1000)}});
+ assert.equal((await post(request(app),'/recover',{email:rbm.email,code:expired.body.code,password})).status,400);
+ assert.equal((await post(r,'/change-password',{currentPassword:'incorrect',password})).status,400);
+ assert.equal((await post(r,'/change-password',{currentPassword:nextPassword,password})).status,200);
+ assert.equal((await r.get('/api/auth/me')).status,401);
+ assert.equal((await post(r,'/login',{email:rbm.email,password})).status,200);
+ assert.equal(await PasswordRecovery.countDocuments({account:rbm._id}),0);
+ assert.ok(await AccountEvent.countDocuments({account:rbm.id,action:'PASSWORD_CHANGED'}));
+ console.log('PASS: regional access, analyst-only administration, disable/re-enable, session revocation, recovery hashing/expiry/replay, password change and audit events.');
+} finally {
+ const ids=accounts.map(a=>a._id);
+ await LoginSession.deleteMany({account:{$in:ids}});
+ await PasswordRecovery.deleteMany({account:{$in:ids}});
+ await AccountEvent.deleteMany({account:{$in:ids.map(String)}});
+ await Account.deleteMany({_id:{$in:ids}});
+ await disconnectDatabase();
+}

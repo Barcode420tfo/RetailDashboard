@@ -14,6 +14,8 @@ export const Cluster = model('Cluster', schema({
 
 export const Agent = model('Agent', dateRange(schema({
   agentId: { ...text(), immutable: true }, employeeId: text(false), fullName: text(), role: text(),
+  // Alternate source-system spellings. The immutable agentId remains the attribution authority.
+  aliases: { type: [String], default: [] },
   startDate: day(false), exitDate: day(false),
   currentCluster: ref('Cluster', false), currentSupervisor: ref('LeadershipPerson', false),
   currentStatus: choice(['ACTIVE', 'INACTIVE', 'RESIGNED', 'UNKNOWN'], 'UNKNOWN'),

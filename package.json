@@ -13,7 +13,12 @@
     "dev:server": "node --env-file=.env --watch server/index.js",
     "dev:client": "vite",
     "build": "vite build",
-    "start": "node server/index.js"
+    "start": "NODE_ENV=production node --env-file-if-exists=.env server/index.js",
+    "db:start": "node server/scripts/local-mongo.js start",
+    "db:stop": "node server/scripts/local-mongo.js stop",
+    "db:status": "node server/scripts/local-mongo.js status",
+    "test:db": "node --env-file=.env server/scripts/verify-database.js",
+    "db:import": "node --env-file=.env server/scripts/import-lagos-masters.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

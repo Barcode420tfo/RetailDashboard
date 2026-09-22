@@ -1,0 +1,34 @@
+services:
+  app:
+    build:
+      context: ..
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3001
+      CLIENT_ORIGIN: https://${DASHBOARD_DOMAIN:?Set DASHBOARD_DOMAIN}
+      COOKIE_SECURE: 'true'
+      TRUST_PROXY_HOPS: 1
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI}
+      ADMIN_SETUP_CODE: ${ADMIN_SETUP_CODE:-}
+    expose:
+      - '3001'
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      DASHBOARD_DOMAIN: ${DASHBOARD_DOMAIN:?Set DASHBOARD_DOMAIN}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+volumes:
+  caddy_data:
+  caddy_config:

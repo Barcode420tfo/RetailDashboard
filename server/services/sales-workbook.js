@@ -1,6 +1,8 @@
 import ExcelJS from 'exceljs';
 
 export const normalizeName = value => String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+export const agentMatchesName = (agent, value) => [agent.fullName, ...(agent.aliases || [])]
+  .some(name => normalizeName(name) === normalizeName(value));
 const north = ['FCT','Kaduna','Kano','Kwara','Niger','Nasarawa','Plateau','Benue','Kogi','Bauchi','Gombe','Adamawa','Taraba','Borno','Yobe','Jigawa','Katsina','Sokoto','Kebbi','Zamfara'];
 const south = ['Oyo','Ogun','Osun','Ondo','Ekiti','Imo','Abia','Anambra','Enugu','Ebonyi','Delta','Edo','Rivers','Bayelsa','Cross River','Akwa Ibom'];
 export function stateIdentity(value) {

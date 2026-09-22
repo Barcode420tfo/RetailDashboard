@@ -1,0 +1,17 @@
+node_modules
+.env
+.env.*
+.local
+dist
+data
+artifacts
+coverage
+uploads
+playwright-report
+test-results
+.DS_Store
+check-reference.js
+*.xlsx
+*.xls
+*.csv
+*.ipynb
